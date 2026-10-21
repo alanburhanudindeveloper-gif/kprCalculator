@@ -25,10 +25,25 @@ import {
 import { exportKprSimulationToPdf } from './utils/pdfExport';
 import { RewardedAdPdfModal } from './components/RewardedAdPdfModal';
 import { rewardedAdsService, RewardedAdStatus } from './services/rewardedAds';
+import {
+  loadCalculatorSnapshot,
+  loadFinancialProfile,
+  loadThemePreference,
+  saveCalculatorSnapshot,
+  saveFinancialProfile,
+  saveThemePreference,
+  clearFinancialProfile,
+  saveSimulationHistoryEntry,
+  clearAllSavedData,
+  loadSimulationHistory,
+  SimulationHistoryEntry,
+} from './services/localDb';
 import { FinancialHealthAdvisorCard } from './components/financial/FinancialHealthAdvisorCard';
 import { UserFinancialProfile } from './types/financialHealth';
 import { DEFAULT_FINANCIAL_PROFILE } from './utils/financialAdvisor';
 import { CheckCircle2 } from 'lucide-react';
+import { SimulationHistoryPanel } from './components/SimulationHistoryPanel';
+import { hasSupabaseConfig, syncSimulationToSupabase } from './services/supabase';
 
 export default function App() {
   const [params, setParams] = useState<KprParameters>(DEFAULT_SP3K_PARAMS);
@@ -38,6 +53,8 @@ export default function App() {
   const [isParamModalOpen, setIsParamModalOpen] = useState(false);
   const [isRefinancingModalOpen, setIsRefinancingModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [hasHydrated, setHasHydrated] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<SimulationHistoryEntry[]>([]);
 
   // Dark Mode State with LocalStorage & OS preference detection
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -60,6 +77,65 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateFromDatabase = async () => {
+      try {
+        const savedSnapshot = await loadCalculatorSnapshot();
+        if (isMounted && savedSnapshot) {
+          setParams(savedSnapshot.params);
+          setExtraAnnual(savedSnapshot.extraAnnual);
+          setInterval(savedSnapshot.interval);
+          setMode(savedSnapshot.mode);
+        }
+
+        const savedProfile = await loadFinancialProfile();
+        if (isMounted && savedProfile) {
+          setFinancialProfile(savedProfile);
+        }
+
+        const savedTheme = await loadThemePreference();
+        if (isMounted && savedTheme) {
+          const nextIsDark = savedTheme === 'dark';
+          setIsDarkMode(nextIsDark);
+        }
+
+        const savedHistory = await loadSimulationHistory();
+        if (isMounted) {
+          setHistoryEntries(savedHistory);
+        }
+      } finally {
+        if (isMounted) {
+          setHasHydrated(true);
+        }
+      }
+    };
+
+    void hydrateFromDatabase();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    void saveCalculatorSnapshot({
+      params,
+      extraAnnual,
+      interval,
+      mode,
+      updatedAt: Date.now(),
+    });
+  }, [params, extraAnnual, interval, mode, hasHydrated]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    void saveThemePreference(isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode, hasHydrated]);
+
   const toggleDarkMode = () => {
     setIsDarkMode((prev) => !prev);
     showToast(isDarkMode ? 'Mode Terang diaktifkan' : 'Mode Gelap diaktifkan');
@@ -79,12 +155,54 @@ export default function App() {
   // 3. Generate skenario otomatis
   const scenarios = generateScenarioItems(params, interval, mode, baseline);
 
+  const handleSaveCurrentSimulation = async () => {
+    const payload = {
+      params,
+      extraAnnual,
+      interval,
+      mode,
+      savedAt: Date.now(),
+    };
+
+    await saveSimulationHistoryEntry(payload);
+    const refreshedHistory = await loadSimulationHistory();
+    setHistoryEntries(refreshedHistory);
+
+    if (hasSupabaseConfig) {
+      await syncSimulationToSupabase(payload);
+      showToast('Simulasi disimpan ke lokal dan cloud');
+    } else {
+      showToast('Simulasi disimpan di browser');
+    }
+  };
+
+  const handleRestoreHistory = (entry: SimulationHistoryEntry) => {
+    setParams(entry.params);
+    setExtraAnnual(entry.extraAnnual);
+    setInterval(entry.interval);
+    setMode(entry.mode);
+    showToast('Data riwayat berhasil dipulihkan');
+  };
+
   const handleReset = () => {
     setParams(DEFAULT_SP3K_PARAMS);
     setExtraAnnual(20_000_000);
     setInterval(12);
     setMode('A');
     showToast('Parameter dikembalikan ke data default SP3K BCA (Plafon Rp631 Juta, 20 Tahun)');
+  };
+
+  const handleClearSavedData = async () => {
+    setParams(DEFAULT_SP3K_PARAMS);
+    setExtraAnnual(20_000_000);
+    setInterval(12);
+    setMode('A');
+    setIsDarkMode(false);
+    localStorage.setItem('theme', 'light');
+    localStorage.removeItem('kpr_financial_profile');
+    setFinancialProfile(DEFAULT_FINANCIAL_PROFILE);
+    await clearAllSavedData();
+    showToast('Data tersimpan di browser berhasil dihapus');
   };
 
   const [financialProfile, setFinancialProfile] = useState<UserFinancialProfile>(() => {
@@ -106,6 +224,7 @@ export default function App() {
     } catch {
       // ignore
     }
+    void saveFinancialProfile(newProfile);
     showToast('Profil finansial berhasil diperbarui');
   };
 
@@ -116,6 +235,7 @@ export default function App() {
     } catch {
       // ignore
     }
+    void clearFinancialProfile();
     showToast('Profil finansial dikembalikan ke standar');
   };
 
@@ -236,6 +356,7 @@ export default function App() {
           isDarkMode={isDarkMode}
           onToggleDarkMode={toggleDarkMode}
           onReset={handleReset}
+          onClearSavedData={handleClearSavedData}
           onOpenParams={() => setIsParamModalOpen(true)}
           onOpenRefinancingGuide={() => setIsRefinancingModalOpen(true)}
           onExportPdf={requestPdfDownload}
@@ -329,6 +450,15 @@ export default function App() {
               showToast(`Berhasil menerapkan target extra payment: ${formatRupiah(amt)}/tahun`);
             }}
           />
+
+          <div className="pt-2">
+            <SimulationHistoryPanel
+              entries={historyEntries}
+              onRestore={handleRestoreHistory}
+              onSaveCurrent={handleSaveCurrentSimulation}
+              cloudEnabled={hasSupabaseConfig}
+            />
+          </div>
 
           {/* Scenario Table Section */}
           <section id="skenario-section" aria-label="Tabel Skenario Nominal Pembayaran Ekstra">

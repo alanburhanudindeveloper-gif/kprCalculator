@@ -5,6 +5,7 @@ interface NavbarProps {
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   onReset: () => void;
+  onClearSavedData: () => void;
   onOpenParams: () => void;
   onOpenRefinancingGuide: () => void;
   onExportPdf: () => void;
@@ -14,6 +15,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isDarkMode,
   onToggleDarkMode,
   onReset,
+  onClearSavedData,
   onOpenParams,
   onOpenRefinancingGuide,
   onExportPdf,
@@ -108,6 +110,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span className="hidden lg:inline">Reset</span>
+          </button>
+
+          <button
+            onClick={onClearSavedData}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-red-500/20 hover:bg-red-500/30 dark:bg-red-500/15 dark:hover:bg-red-500/25 active:scale-95 rounded-lg border border-red-200/30 dark:border-red-500/30 transition-all whitespace-nowrap cursor-pointer"
+            title="Hapus semua data yang tersimpan di browser"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline">Hapus Data</span>
           </button>
         </div>
       </div>
