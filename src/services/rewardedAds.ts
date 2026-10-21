@@ -35,7 +35,7 @@ const DEFAULT_GPT_REWARDED_AD_UNIT =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GPT_REWARDED_AD_UNIT) ||
   '/21775744923/example/rewarded';
 
-const AD_LOAD_TIMEOUT_MS = 9000; // 9 detik batas waktu toleransi loading iklan
+const AD_LOAD_TIMEOUT_MS = 3500; // 3.5 detik toleransi loading agar cepat auto-download jika iklan kosong
 
 class RewardedAdsService {
   private activeSlot: GptSlot | null = null;

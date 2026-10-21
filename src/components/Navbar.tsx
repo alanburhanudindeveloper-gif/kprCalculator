@@ -126,6 +126,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Kalkulator Pokok</span>
             </a>
             <a
+              href="#financial-advisor-section"
+              className="text-amber-300 dark:text-amber-400 font-bold hover:text-white dark:hover:text-white transition flex items-center gap-1.5"
+            >
+              <span>Cek Finansial &amp; Advisor</span>
+            </a>
+            <a
               href="#skenario-section"
               className="hover:text-white dark:hover:text-white transition flex items-center gap-1.5"
             >

@@ -141,7 +141,8 @@ export function runAmortizationSimulation(
   params: KprParameters,
   extraAnnual: number,
   interval: PaymentInterval,
-  mode: SimulationMode
+  mode: SimulationMode,
+  customAnnualSchedule?: Record<number, number>
 ): SimulationResult {
   let saldo = params.plafon;
   const schedule: AmortizationRow[] = [];
@@ -287,13 +288,26 @@ export function runAmortizationSimulation(
       isExtraMonth = true;
     }
 
+    const currentYear = Math.ceil(m / 12);
+    let targetExtraThisCycle = extraPerCycle;
+    if (customAnnualSchedule && customAnnualSchedule[currentYear] !== undefined) {
+      const yearNominal = customAnnualSchedule[currentYear];
+      if (interval === 1) {
+        targetExtraThisCycle = yearNominal / 12;
+      } else if (interval === 6) {
+        targetExtraThisCycle = yearNominal / 2;
+      } else {
+        targetExtraThisCycle = yearNominal;
+      }
+    }
+
     let actualExtra = 0;
-    if (isExtraMonth && saldo > 0 && extraPerCycle > 0) {
-      if (saldo < extraPerCycle) {
+    if (isExtraMonth && saldo > 0 && targetExtraThisCycle > 0) {
+      if (saldo < targetExtraThisCycle) {
         actualExtra = saldo;
         saldo = 0;
       } else {
-        actualExtra = extraPerCycle;
+        actualExtra = targetExtraThisCycle;
         saldo -= actualExtra;
       }
 

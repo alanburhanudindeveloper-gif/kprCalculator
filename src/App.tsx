@@ -25,6 +25,9 @@ import {
 import { exportKprSimulationToPdf } from './utils/pdfExport';
 import { RewardedAdPdfModal } from './components/RewardedAdPdfModal';
 import { rewardedAdsService, RewardedAdStatus } from './services/rewardedAds';
+import { FinancialHealthAdvisorCard } from './components/financial/FinancialHealthAdvisorCard';
+import { UserFinancialProfile } from './types/financialHealth';
+import { DEFAULT_FINANCIAL_PROFILE } from './utils/financialAdvisor';
 import { CheckCircle2 } from 'lucide-react';
 
 export default function App() {
@@ -82,6 +85,38 @@ export default function App() {
     setInterval(12);
     setMode('A');
     showToast('Parameter dikembalikan ke data default SP3K BCA (Plafon Rp631 Juta, 20 Tahun)');
+  };
+
+  const [financialProfile, setFinancialProfile] = useState<UserFinancialProfile>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('kpr_financial_profile');
+        if (saved) return JSON.parse(saved);
+      } catch {
+        // ignore
+      }
+    }
+    return DEFAULT_FINANCIAL_PROFILE;
+  });
+
+  const handleUpdateFinancialProfile = (newProfile: UserFinancialProfile) => {
+    setFinancialProfile(newProfile);
+    try {
+      localStorage.setItem('kpr_financial_profile', JSON.stringify(newProfile));
+    } catch {
+      // ignore
+    }
+    showToast('Profil finansial berhasil diperbarui');
+  };
+
+  const handleResetFinancialProfile = () => {
+    setFinancialProfile(DEFAULT_FINANCIAL_PROFILE);
+    try {
+      localStorage.removeItem('kpr_financial_profile');
+    } catch {
+      // ignore
+    }
+    showToast('Profil finansial dikembalikan ke standar');
   };
 
   const handleApplyReverseExtra = (amount: number) => {
@@ -145,10 +180,15 @@ export default function App() {
         // User menutup iklan sebelum reward selesai
         setRewardedStatus('NOT_COMPLETED');
       },
-      onUnavailable: (reason: string) => {
-        // Iklan tidak tersedia / no-fill / timeout / adblocker
-        setRewardedStatus('UNAVAILABLE');
-        setRewardedErrorMsg(reason);
+      onUnavailable: (_reason: string) => {
+        // Jika iklan masih kosong, no-fill, atau tidak tersedia:
+        // Langsung lakukan auto download PDF untuk pengguna
+        setRewardedStatus('GENERATING_PDF');
+        setRewardedErrorMsg('Iklan sedang kosong. Menyiapkan dan mengunduh PDF secara langsung...');
+        showToast('Iklan kosong, PDF langsung diunduh otomatis...');
+        setTimeout(() => {
+          executePdfGeneration();
+        }, 400);
       },
     });
   };
@@ -164,6 +204,7 @@ export default function App() {
         mode,
         baseline,
         simulated,
+        profile: financialProfile,
       });
       setRewardedStatus('SUCCESS');
       showToast('File PDF berhasil diunduh!');
@@ -272,6 +313,23 @@ export default function App() {
             />
           )}
 
+          {/* FINANCIAL HEALTH & EXTRA PAYMENT ADVISOR (FITUR UTAMA BARU) */}
+          <FinancialHealthAdvisorCard
+            profile={financialProfile}
+            onChangeProfile={handleUpdateFinancialProfile}
+            onResetProfile={handleResetFinancialProfile}
+            kprParams={params}
+            extraAnnual={extraAnnual}
+            interval={interval}
+            mode={mode}
+            baseline={baseline}
+            simulated={simulated}
+            onApplyExtra={(amt) => {
+              setExtraAnnual(amt);
+              showToast(`Berhasil menerapkan target extra payment: ${formatRupiah(amt)}/tahun`);
+            }}
+          />
+
           {/* Scenario Table Section */}
           <section id="skenario-section" aria-label="Tabel Skenario Nominal Pembayaran Ekstra">
             <ScenarioTable
@@ -355,6 +413,11 @@ export default function App() {
                 <li>
                   <a href="#skenario-section" className="hover:text-blue-600 dark:hover:text-blue-400 transition">
                     Skenario Nominal Ekstra
+                  </a>
+                </li>
+                <li>
+                  <a href="#financial-advisor-section" className="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline transition">
+                    Cek Kesehatan Finansial
                   </a>
                 </li>
                 <li>

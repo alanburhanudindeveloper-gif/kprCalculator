@@ -1,6 +1,8 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { KprParameters, SimulationMode, PaymentInterval, SimulationResult } from '../types/kpr';
+import { UserFinancialProfile } from '../types/financialHealth';
+import { assessFinancialHealth } from './financialAdvisor';
 import { formatRupiah, formatBulanTahun } from './calculator';
 
 interface ExportPdfOptions {
@@ -10,6 +12,7 @@ interface ExportPdfOptions {
   mode: SimulationMode;
   baseline: SimulationResult;
   simulated: SimulationResult;
+  profile?: UserFinancialProfile;
 }
 
 export function exportKprSimulationToPdf({
@@ -19,6 +22,7 @@ export function exportKprSimulationToPdf({
   mode,
   baseline,
   simulated,
+  profile,
 }: ExportPdfOptions) {
   // Buat dokumen PDF A4 Portrait
   const doc = new jsPDF({
@@ -284,6 +288,195 @@ export function exportKprSimulationToPdf({
     margin: { left: 14, right: 14 },
   });
 
+  // --- HALAMAN FINANCIAL HEALTH ASSESSMENT (JIKA PROFILE TERSEDIA) ---
+  if (profile) {
+    const assess = assessFinancialHealth({
+      profile,
+      kprParams: params,
+      extraAnnualTarget: extraAnnual,
+      interval,
+      mode,
+      baseline,
+      simulated,
+    });
+
+    doc.addPage();
+
+    // Header Financial Health (Emerald theme)
+    doc.setFillColor(16, 185, 129);
+    doc.rect(0, 0, pageWidth, 22, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('FINANCIAL HEALTH & CAPACITY ASSESSMENT', 14, 10);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Evaluasi Kelayakan Extra Payment, Cash Flow Bulanan & Rekomendasi Alokasi Berkelanjutan', 14, 16);
+
+    let healthY = 28;
+
+    // 1. Health Status Banner
+    const isHealthy = assess.healthStatus === 'healthy';
+    const isCaution = assess.healthStatus === 'caution';
+    const bannerColor = isHealthy ? [209, 250, 229] : isCaution ? [254, 243, 199] : [255, 228, 230];
+    const bannerTextColor = isHealthy ? [6, 95, 70] : isCaution ? [146, 64, 14] : [159, 18, 57];
+
+    doc.setFillColor(bannerColor[0], bannerColor[1], bannerColor[2]);
+    doc.roundedRect(14, healthY, pageWidth - 28, 18, 3, 3, 'F');
+    doc.setTextColor(bannerTextColor[0], bannerTextColor[1], bannerTextColor[2]);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    const statusLabel = isHealthy ? 'STATUS: SEHAT (RELEVAN & AMAN)' : isCaution ? 'STATUS: PERLU DIPERTIMBANGKAN' : 'STATUS: TERLALU AGRESIF / BERISIKO';
+    doc.text(`${statusLabel} · Skor Finansial: ${assess.healthScore}/100`, 18, healthY + 7);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(doc.splitTextToSize(assess.healthExplanation, pageWidth - 36), 18, healthY + 12);
+
+    healthY += 24;
+
+    // 2. Cash Flow Waterfall & Rincian Kapasitas
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('1. STRUKTUR CASH FLOW & SISA BUFFER BULANAN', 14, healthY);
+
+    const cashFlowRows = [
+      ['Total Penghasilan Bersih Bulanan', formatRupiah(assess.totalIncome), 'Take-home pay & penghasilan tambahan'],
+      ['Pengeluaran Rutin Bulanan', `-${formatRupiah(assess.totalExpenses)}`, 'Kebutuhan pokok, utilitas, transportasi'],
+      ['Cicilan KPR Berjalan', `-${formatRupiah(assess.cicilanKprCurrent)}`, 'Kewajiban angsuran KPR aktif'],
+      ['Cicilan / Utang Lain (Non-KPR)', `-${formatRupiah(assess.totalOtherDebts)}`, 'Kendaraan, kartu kredit, pinjaman'],
+      ['= Disposable Income (Surplus Kas)', formatRupiah(assess.disposableIncome), 'Kapasitas kas sebelum extra payment'],
+      ['Target Extra Payment Anda', `${formatRupiah(extraAnnual)}/thn (Setara ${formatRupiah(assess.extraMonthlyEquivalent)}/bln)`, 'Alokasi yang sedang disimulasikan'],
+      ['= Sisa Financial Buffer Bulanan', `${formatRupiah(assess.remainingBuffer)}/bln`, assess.remainingBuffer >= 1_500_000 ? 'Kategori: Aman' : 'Kategori: Ketat/Waspada'],
+      ['Cakupan Dana Darurat', `±${assess.emergencyFundMonths.toFixed(1)} Bulan Pengeluaran`, `Kategori: ${assess.emergencyCategory.toUpperCase()}`],
+      ['Rasio Total Cicilan Utang (DTI)', `${(assess.dtiRatio * 100).toFixed(0)}% dari Penghasilan`, assess.dtiRatio <= 0.4 ? 'Ambang batas aman perbankan' : 'Beban utang tinggi (>40%)'],
+    ];
+
+    autoTable(doc, {
+      startY: healthY + 3,
+      head: [['Indikator Keuangan', 'Nilai Nominal', 'Keterangan Evaluasi']],
+      body: cashFlowRows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [30, 41, 59],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 7.5,
+      },
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 1.6,
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 65 },
+        1: { halign: 'right', fontStyle: 'bold', cellWidth: 55 },
+        2: { cellWidth: 'auto' },
+      },
+      didParseCell: (data) => {
+        if (data.row.index === 4) {
+          data.cell.styles.fillColor = [238, 242, 255];
+        } else if (data.row.index === 6) {
+          data.cell.styles.fillColor = assess.remainingBuffer >= 1_000_000 ? [209, 250, 229] : [254, 243, 199];
+        }
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    healthY = (doc as any).lastAutoTable.finalY + 8;
+
+    // 3. Rekomendasi Seimbang & Alasan
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('2. REKOMENDASI ALOKASI SEIMBANG (OPTIMAL RANGE)', 14, healthY);
+
+    healthY += 4;
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(14, healthY, pageWidth - 28, 18, 2, 2, 'F');
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(`Target Rekomendasi Seimbang: ${formatRupiah(assess.recommendedExtraAnnual)} / tahun (Setara ${formatRupiah(assess.recommendedExtraAnnual / 12)} / bulan)`, 18, healthY + 6);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(doc.splitTextToSize(`Mengapa angka ini direkomendasikan? ${assess.whyRecommended}`, pageWidth - 36), 18, healthY + 11);
+
+    healthY += 23;
+
+    // 4. Tabel 3 Skenario Rekomendasi
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('3. PERBANDINGAN 3 SKENARIO REKOMENDASI KPR', 14, healthY);
+
+    const scenarioRows = [
+      [
+        'Konservatif',
+        `${formatRupiah(assess.scenarios.conservative.extraAnnual)}/thn`,
+        `${assess.scenarios.conservative.estimasiTenorTahun} Thn (${assess.scenarios.conservative.estimasiTenorBulan} Bln)`,
+        formatRupiah(assess.scenarios.conservative.hematBunga),
+        `${formatRupiah(assess.scenarios.conservative.remainingBuffer)}/bln`,
+        'Rendah (Likuiditas Maksimal)',
+      ],
+      [
+        'Seimbang (Recommended)',
+        `${formatRupiah(assess.scenarios.recommended.extraAnnual)}/thn`,
+        `${assess.scenarios.recommended.estimasiTenorTahun} Thn (${assess.scenarios.recommended.estimasiTenorBulan} Bln)`,
+        formatRupiah(assess.scenarios.recommended.hematBunga),
+        `${formatRupiah(assess.scenarios.recommended.remainingBuffer)}/bln`,
+        'Sedang (Trade-off Optimal)',
+      ],
+      [
+        'Agresif',
+        `${formatRupiah(assess.scenarios.aggressive.extraAnnual)}/thn`,
+        `${assess.scenarios.aggressive.estimasiTenorTahun} Thn (${assess.scenarios.aggressive.estimasiTenorBulan} Bln)`,
+        formatRupiah(assess.scenarios.aggressive.hematBunga),
+        `${formatRupiah(assess.scenarios.aggressive.remainingBuffer)}/bln`,
+        'Tinggi (Buffer Sangat Ketat)',
+      ],
+    ];
+
+    autoTable(doc, {
+      startY: healthY + 3,
+      head: [['Skenario', 'Extra/Tahun', 'Tenor Baru', 'Hemat Bunga', 'Sisa Buffer Kas', 'Dampak Cash Flow']],
+      body: scenarioRows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [0, 96, 175],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 7.5,
+        halign: 'center',
+      },
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 1.8,
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold' },
+        1: { halign: 'right' },
+        2: { halign: 'center' },
+        3: { halign: 'right', fontStyle: 'bold', textColor: [16, 185, 129] },
+        4: { halign: 'right', fontStyle: 'bold' },
+        5: { halign: 'center' },
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    healthY = (doc as any).lastAutoTable.finalY + 6;
+
+    // 5. Catatan Edukasi & Prinsip Berkelanjutan
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      '*Prinsip Finansial: "KPR cepat lunas itu bagus, tapi jangan sampai membuat kondisi keuangan harian menjadi rapuh." Keputusan extra payment bersifat dinamis dan dapat disesuaikan setiap tahun sesuai situasi riil keluarga Anda.',
+      14,
+      healthY,
+      { maxWidth: pageWidth - 28 }
+    );
+  }
+
   // --- HALAMAN BARU: JADWAL TABEL AMORTISASI BULANAN ---
   doc.addPage();
 
@@ -292,7 +485,7 @@ export function exportKprSimulationToPdf({
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('4. JADWAL TABEL AMORTISASI BULANAN LENGKAP (Bulan 1 s/d Lunas)', 14, 11);
+  doc.text('5. JADWAL TABEL AMORTISASI BULANAN LENGKAP (Bulan 1 s/d Lunas)', 14, 11);
 
   const amortHeaders = [
     'Bln',

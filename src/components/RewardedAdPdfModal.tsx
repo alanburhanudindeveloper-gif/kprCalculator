@@ -175,7 +175,7 @@ export const RewardedAdPdfModal: React.FC<RewardedAdPdfModalProps> = ({
                 PDF sedang disiapkan...
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Reward terkonfirmasi. Dokumen simulasi Anda akan otomatis terunduh.
+                {statusMessage || 'Dokumen simulasi Anda sedang disiapkan dan akan otomatis terunduh.'}
               </p>
             </div>
           </div>
