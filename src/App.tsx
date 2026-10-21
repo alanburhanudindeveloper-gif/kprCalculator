@@ -14,6 +14,7 @@ import { Sp3kParameterModal } from './components/Sp3kParameterModal';
 import { Disclaimer } from './components/Disclaimer';
 import { MonthlyBreakdownExplainer } from './components/MonthlyBreakdownExplainer';
 import { RefinancingGuideModal } from './components/RefinancingGuideModal';
+import { KprSeoContentSection } from './components/KprSeoContentSection';
 import { KprParameters, SimulationMode, PaymentInterval } from './types/kpr';
 import {
   DEFAULT_SP3K_PARAMS,
@@ -22,6 +23,8 @@ import {
   formatRupiah,
 } from './utils/calculator';
 import { exportKprSimulationToPdf } from './utils/pdfExport';
+import { RewardedAdPdfModal } from './components/RewardedAdPdfModal';
+import { rewardedAdsService, RewardedAdStatus } from './services/rewardedAds';
 import { CheckCircle2 } from 'lucide-react';
 
 export default function App() {
@@ -86,9 +89,74 @@ export default function App() {
     showToast(`Berhasil menerapkan target extra payment: ${formatRupiah(amount)}/tahun`);
   };
 
-  const handleExportPdf = () => {
+  // --- REWARDED ADVERTISEMENT PDF MONETIZATION FLOW ---
+  const [isRewardedModalOpen, setIsRewardedModalOpen] = useState(false);
+  const [rewardedStatus, setRewardedStatus] = useState<RewardedAdStatus>('IDLE');
+  const [rewardedErrorMsg, setRewardedErrorMsg] = useState<string>('');
+
+  // 1. Entry point saat user menekan tombol [ Download PDF ] / [ Export PDF ]
+  const requestPdfDownload = () => {
+    setRewardedErrorMsg('');
+    setRewardedStatus('CONFIRM');
+    setIsRewardedModalOpen(true);
+  };
+
+  // 2. User membatalkan dialog
+  const handleCancelRewardedModal = () => {
+    rewardedAdsService.cleanupSlot();
+    setIsRewardedModalOpen(false);
+    setRewardedStatus('IDLE');
+    setRewardedErrorMsg('');
+  };
+
+  // 3. User memilih [ Tonton Iklan ] / [ Coba Lagi ]
+  const showRewardedAd = () => {
+    setRewardedStatus('LOADING_AD');
+    setRewardedErrorMsg('');
+
+    rewardedAdsService.requestAndShowRewardedAd({
+      onReady: () => {
+        // Iklan siap ditampilkan
+      },
+      onPlaying: () => {
+        setRewardedStatus('PLAYING_AD');
+      },
+      onRewardGranted: () => {
+        // Callback resmi dari provider iklan diterima
+        // Lakukan verifikasi sesi reward anti-tamper
+        const activeSession = rewardedAdsService.getCurrentSession();
+        if (!activeSession) {
+          setRewardedStatus('UNAVAILABLE');
+          setRewardedErrorMsg('Sesi reward tidak ditemukan');
+          return;
+        }
+
+        const verifyResult = rewardedAdsService.verifyReward(activeSession.sessionId);
+        if (!verifyResult.valid) {
+          setRewardedStatus('UNAVAILABLE');
+          setRewardedErrorMsg(verifyResult.error || 'Verifikasi reward gagal');
+          return;
+        }
+
+        // Reward valid & terverifikasi -> siapkan dan download PDF
+        executePdfGeneration();
+      },
+      onDismissedWithoutReward: () => {
+        // User menutup iklan sebelum reward selesai
+        setRewardedStatus('NOT_COMPLETED');
+      },
+      onUnavailable: (reason: string) => {
+        // Iklan tidak tersedia / no-fill / timeout / adblocker
+        setRewardedStatus('UNAVAILABLE');
+        setRewardedErrorMsg(reason);
+      },
+    });
+  };
+
+  // 4. Generate & Auto-Download PDF hanya setelah reward resmi diverifikasi
+  const executePdfGeneration = () => {
     try {
-      showToast('Membuat dokumen PDF...');
+      setRewardedStatus('GENERATING_PDF');
       exportKprSimulationToPdf({
         params,
         extraAnnual,
@@ -97,10 +165,17 @@ export default function App() {
         baseline,
         simulated,
       });
+      setRewardedStatus('SUCCESS');
       showToast('File PDF berhasil diunduh!');
+      setTimeout(() => {
+        setIsRewardedModalOpen(false);
+        setRewardedStatus('IDLE');
+      }, 1500);
     } catch (err) {
-      console.error(err);
-      showToast('Gagal mengekspor PDF.');
+      console.error('[PDF Export Error]:', err);
+      showToast('Gagal memproses dokumen PDF.');
+      setIsRewardedModalOpen(false);
+      setRewardedStatus('IDLE');
     }
   };
 
@@ -122,7 +197,7 @@ export default function App() {
           onReset={handleReset}
           onOpenParams={() => setIsParamModalOpen(true)}
           onOpenRefinancingGuide={() => setIsRefinancingModalOpen(true)}
-          onExportPdf={handleExportPdf}
+          onExportPdf={requestPdfDownload}
         />
 
         <main className="max-w-6xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -139,23 +214,26 @@ export default function App() {
             onScrollToReverse={scrollToReverseSection}
           />
 
-          {/* Variabel Pokok KPR & Suku Bunga (Multi-Kondisi: Fix Berjenjang, Fixed, Floating, Flat) */}
-          <LoanParametersCard
-            params={params}
-            onChangeParams={(newParams) => {
-              setParams(newParams);
-              showToast('Parameter Pokok KPR & Suku Bunga berhasil disesuaikan');
-            }}
-            onResetDefaults={handleReset}
-          />
+          {/* Kalkulator Input Pokok KPR & Extra Payment Section */}
+          <div id="kalkulator-section" className="space-y-6">
+            {/* Variabel Pokok KPR & Suku Bunga (Multi-Kondisi: Fix Berjenjang, Fixed, Floating, Flat) */}
+            <LoanParametersCard
+              params={params}
+              onChangeParams={(newParams) => {
+                setParams(newParams);
+                showToast('Parameter Pokok KPR & Suku Bunga berhasil disesuaikan');
+              }}
+              onResetDefaults={handleReset}
+            />
 
-          {/* Input Extra Payment */}
-          <ExtraPaymentInput
-            extraAnnual={extraAnnual}
-            interval={interval}
-            onChangeExtra={setExtraAnnual}
-            onChangeInterval={setInterval}
-          />
+            {/* Input Extra Payment */}
+            <ExtraPaymentInput
+              extraAnnual={extraAnnual}
+              interval={interval}
+              onChangeExtra={setExtraAnnual}
+              onChangeInterval={setInterval}
+            />
+          </div>
 
           {/* Summary Dashboard Cards */}
           <SummaryDashboard
@@ -194,50 +272,164 @@ export default function App() {
             />
           )}
 
-          {/* Scenario Table */}
-          <ScenarioTable
-            scenarios={scenarios}
-            currentExtraAnnual={extraAnnual}
-            onSelectExtra={(amt) => {
-              setExtraAnnual(amt);
-              showToast(`Dipilih skenario extra payment ${formatRupiah(amt)}/tahun`);
-            }}
-          />
+          {/* Scenario Table Section */}
+          <section id="skenario-section" aria-label="Tabel Skenario Nominal Pembayaran Ekstra">
+            <ScenarioTable
+              scenarios={scenarios}
+              currentExtraAnnual={extraAnnual}
+              onSelectExtra={(amt) => {
+                setExtraAnnual(amt);
+                showToast(`Dipilih skenario extra payment ${formatRupiah(amt)}/tahun`);
+              }}
+            />
+          </section>
 
-          {/* 3 Interactive Chart.js Visualizations */}
-          <ChartsSection
-            params={params}
-            baseline={baseline}
-            simulated={simulated}
-            mode={mode}
-            isDarkMode={isDarkMode}
-          />
+          {/* 3 Interactive Chart.js Visualizations Section */}
+          <section id="grafik-section" aria-label="Grafik Visualisasi Penurunan Pokok dan Bunga">
+            <ChartsSection
+              params={params}
+              baseline={baseline}
+              simulated={simulated}
+              mode={mode}
+              isDarkMode={isDarkMode}
+            />
+          </section>
 
-          {/* Amortization Schedule Table */}
-          <AmortizationSchedule
-            schedule={simulated.schedule}
-            totalMonths={simulated.bulanLunas}
-            onExportPdf={handleExportPdf}
-          />
+          {/* Amortization Schedule Table Section */}
+          <section id="amortisasi-section" aria-label="Tabel Jadwal Amortisasi Bulanan KPR">
+            <AmortizationSchedule
+              schedule={simulated.schedule}
+              totalMonths={simulated.bulanLunas}
+              onExportPdf={requestPdfDownload}
+            />
+          </section>
+
+          {/* Comprehensive SEO Content & FAQ Section */}
+          <KprSeoContentSection />
 
           {/* Legal and Technical Disclaimer */}
           <Disclaimer mode={mode} />
         </main>
       </div>
 
-      {/* Footer */}
-      <footer className="mt-12 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors">
-        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800 dark:text-slate-200">KPR Extra Payment Simulator</span>
-            <span>·</span>
-            <span>Data Default SP3K BCA Plafon Rp631.000.000 (20 Tahun)</span>
+      {/* SEO Optimized Footer with Internal Links */}
+      <footer className="mt-14 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-8 text-xs text-slate-500 dark:text-slate-400 transition-colors">
+        <div className="max-w-6xl mx-auto px-4 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+            {/* Col 1: Brand & Purpose */}
+            <div className="md:col-span-2 space-y-2">
+              <span className="font-extrabold text-slate-800 dark:text-slate-100 text-sm block">
+                Kalkulator KPR Simulator (SP3K BCA Model)
+              </span>
+              <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                Aplikasi kalkulator simulasi pelunasan KPR berbasis amortisasi bulanan aktuarial.
+                Membantu nasabah menghitung dampak pembayaran ekstra terhadap pengurangan pokok pinjaman,
+                pemangkasan tenor kredit, dan recalculation cicilan bulanan (Fix Berjenjang, Fixed, Floating, dan Flat).
+              </p>
+              <div className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">
+                Data Default: Plafon Rp631.000.000 · Tenor 240 Bulan (20 Tahun)
+              </div>
+            </div>
+
+            {/* Col 2: Fitur Utama */}
+            <div className="space-y-2">
+              <span className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider block">
+                Fitur Simulasi
+              </span>
+              <ul className="space-y-1.5 text-[11px]">
+                <li>
+                  <a href="#kalkulator-section" className="hover:text-blue-600 dark:hover:text-blue-400 transition">
+                    Mode A: Pangkas Tenor
+                  </a>
+                </li>
+                <li>
+                  <a href="#kalkulator-section" className="hover:text-blue-600 dark:hover:text-blue-400 transition">
+                    Mode B: Turunkan Cicilan
+                  </a>
+                </li>
+                <li>
+                  <a href="#reverse-calculator-section" className="hover:text-blue-600 dark:hover:text-blue-400 transition">
+                    Target Pelunasan Terbalik
+                  </a>
+                </li>
+                <li>
+                  <a href="#skenario-section" className="hover:text-blue-600 dark:hover:text-blue-400 transition">
+                    Skenario Nominal Ekstra
+                  </a>
+                </li>
+                <li>
+                  <a href="#amortisasi-section" className="hover:text-blue-600 dark:hover:text-blue-400 transition">
+                    Tabel Amortisasi Lengkap
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Col 3: Edukasi & Panduan */}
+            <div className="space-y-2">
+              <span className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider block">
+                Edukasi KPR
+              </span>
+              <ul className="space-y-1.5 text-[11px]">
+                <li>
+                  <a href="#panduan-pelunasan" className="hover:text-blue-600 dark:hover:text-blue-400 transition">
+                    Panduan Pelunasan KPR
+                  </a>
+                </li>
+                <li>
+                  <a href="#panduan-pelunasan" className="hover:text-blue-600 dark:hover:text-blue-400 transition">
+                    Cara Hitung Bunga Anuitas
+                  </a>
+                </li>
+                <li>
+                  <a href="#faq-kpr" className="hover:text-blue-600 dark:hover:text-blue-400 transition">
+                    Tanya Jawab (FAQ KPR)
+                  </a>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setIsRefinancingModalOpen(true)}
+                    className="hover:text-blue-600 dark:hover:text-blue-400 transition text-left cursor-pointer"
+                  >
+                    Panduan Suku Bunga Refinancing
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={requestPdfDownload}
+                    className="text-amber-600 dark:text-amber-400 hover:underline text-left cursor-pointer font-semibold"
+                  >
+                    Download Laporan PDF
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
-          <div className="text-slate-400 dark:text-slate-500">
-            Perhitungan amortisasi bulanan aktuaria perbankan
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400 dark:text-slate-500">
+            <div>
+              &copy; {new Date().getFullYear()} Kalkulator KPR Simulator. Didesain untuk perencanaan keuangan cerdas masyarakat Indonesia.
+            </div>
+            <div className="flex items-center gap-3">
+              <a href="#kalkulator-section" className="hover:underline text-blue-600 dark:text-blue-400">
+                Kembali ke Atas &uarr;
+              </a>
+            </div>
           </div>
         </div>
       </footer>
+
+      {/* Rewarded Advertisement Modal for PDF Download */}
+      <RewardedAdPdfModal
+        isOpen={isRewardedModalOpen}
+        status={rewardedStatus}
+        statusMessage={rewardedErrorMsg}
+        onWatchAd={showRewardedAd}
+        onCancel={handleCancelRewardedModal}
+        onRetry={showRewardedAd}
+      />
 
       {/* SP3K Parameters Modal */}
       <Sp3kParameterModal

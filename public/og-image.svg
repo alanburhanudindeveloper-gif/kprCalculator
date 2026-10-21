@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a192f"/>
+      <stop offset="50%" stop-color="#0f274a"/>
+      <stop offset="100%" stop-color="#0060af"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle grid lines -->
+  <g stroke="#ffffff" stroke-opacity="0.05" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105"/>
+    <line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <!-- Badge -->
+  <g transform="translate(100, 90)">
+    <rect width="320" height="42" rx="21" fill="#0284c7" fill-opacity="0.3" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="25" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="700" fill="#38bdf8">KALKULATOR PELUNASAN KPR</text>
+  </g>
+
+  <!-- Main Headline -->
+  <text x="100" y="200" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="52" font-weight="900" fill="#ffffff" letter-spacing="-1">
+    Simulasi Pelunasan KPR
+  </text>
+  <text x="100" y="265" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="52" font-weight="900" fill="url(#accent)" letter-spacing="-1">
+    Lebih Cepat &amp; Hemat Bunga
+  </text>
+
+  <!-- Subtitle -->
+  <text x="100" y="325" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="400" fill="#cbd5e1">
+    Model Amortisasi Presisi SP3K BCA · Fix Berjenjang · Fixed · Floating · Flat
+  </text>
+
+  <!-- 3 Highlights Cards -->
+  <g transform="translate(100, 380)">
+    <!-- Card 1 -->
+    <rect x="0" y="0" width="310" height="150" rx="18" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5"/>
+    <text x="25" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#94a3b8">MODE A: PANGKAS TENOR</text>
+    <text x="25" y="85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="900" fill="#38bdf8">Hemat Bunga</text>
+    <text x="25" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500" fill="#cbd5e1">Bebas cicilan bertahun-tahun lebih cepat</text>
+
+    <!-- Card 2 -->
+    <rect x="340" y="0" width="310" height="150" rx="18" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5"/>
+    <text x="365" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#94a3b8">MODE B: TURUNKAN CICILAN</text>
+    <text x="365" y="85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="900" fill="#34d399">Cash Flow Lega</text>
+    <text x="365" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500" fill="#cbd5e1">Recalculation cicilan bulanan lebih ringan</text>
+
+    <!-- Card 3 -->
+    <rect x="680" y="0" width="320" height="150" rx="18" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5"/>
+    <text x="705" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#94a3b8">AMORTISASI LENGKAP</text>
+    <text x="705" y="85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="900" fill="#facc15">Bulan ke Bulan</text>
+    <text x="705" y="118" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500" fill="#cbd5e1">Rincian pokok, bunga, &amp; export PDF</text>
+  </g>
+</svg>

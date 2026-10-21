@@ -19,13 +19,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   onExportPdf,
 }) => {
   return (
-    <header className="bg-[#0060af] dark:bg-slate-900 text-white shadow-md sticky top-0 z-30 transition-colors border-b border-transparent dark:border-slate-800">
+    <header className="bg-[#0060af] dark:bg-slate-900 text-white shadow-md sticky top-0 z-30 transition-colors border-b border-blue-700/50 dark:border-slate-800">
+      {/* Top Primary Bar */}
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3 sm:gap-4">
-        {/* Zone 1: Brand title */}
+        {/* Zone 1: Brand Title */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/10 dark:bg-blue-600/20 flex items-center justify-center shrink-0 border border-white/20 dark:border-blue-500/30">
+          <a
+            href="/"
+            className="w-9 h-9 rounded-xl bg-white/10 dark:bg-blue-600/20 flex items-center justify-center shrink-0 border border-white/20 dark:border-blue-500/30 hover:bg-white/20 transition"
+            aria-label="Kembali ke Beranda Kalkulator KPR"
+          >
             <Building2 className="w-5 h-5 text-white dark:text-blue-400" />
-          </div>
+          </a>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold tracking-wider uppercase text-blue-200 dark:text-blue-400">
@@ -37,7 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
             <h1 className="text-base sm:text-lg font-extrabold tracking-tight whitespace-nowrap">
-              KPR Extra Payment Simulator
+              Kalkulator KPR Simulator
             </h1>
           </div>
         </div>
@@ -59,11 +64,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenRefinancingGuide}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-white/10 dark:bg-slate-800 hover:bg-white/20 dark:hover:bg-slate-700 active:scale-95 rounded-lg border border-white/20 dark:border-slate-700 transition-all whitespace-nowrap"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-white/10 dark:bg-slate-800 hover:bg-white/20 dark:hover:bg-slate-700 active:scale-95 rounded-lg border border-white/20 dark:border-slate-700 transition-all whitespace-nowrap cursor-pointer"
             title="Pelajari apakah rate berubah saat refinancing vs extra payment"
           >
             <HelpCircle className="w-3.5 h-3.5 text-amber-300" />
-            <span className="hidden md:inline">Tanya Refinancing?</span>
+            <span className="hidden md:inline">Refinancing?</span>
           </button>
 
           {/* Prominent Dark Mode Toggle */}
@@ -89,7 +94,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={onOpenParams}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-white/10 dark:bg-slate-800 hover:bg-white/20 dark:hover:bg-slate-700 active:scale-95 rounded-lg border border-white/20 dark:border-slate-700 transition-all whitespace-nowrap"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-white/10 dark:bg-slate-800 hover:bg-white/20 dark:hover:bg-slate-700 active:scale-95 rounded-lg border border-white/20 dark:border-slate-700 transition-all whitespace-nowrap cursor-pointer"
             title="Kustomisasi Parameter SP3K"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -98,7 +103,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={onReset}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-white/10 dark:bg-slate-800 hover:bg-white/20 dark:hover:bg-slate-700 active:scale-95 rounded-lg border border-white/20 dark:border-slate-700 transition-all whitespace-nowrap"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-white/10 dark:bg-slate-800 hover:bg-white/20 dark:hover:bg-slate-700 active:scale-95 rounded-lg border border-white/20 dark:border-slate-700 transition-all whitespace-nowrap cursor-pointer"
             title="Kembalikan semua nilai ke default SP3K BCA"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -106,6 +111,56 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Subnav for Internal Linking & Search Intent */}
+      <nav
+        aria-label="Navigasi Utama Kalkulator KPR"
+        className="bg-[#005296] dark:bg-slate-950/70 border-t border-blue-600/30 dark:border-slate-800/80 px-4 py-2"
+      >
+        <div className="max-w-6xl mx-auto flex items-center justify-between overflow-x-auto no-scrollbar text-xs font-semibold text-blue-100 dark:text-slate-300 gap-4 sm:gap-6">
+          <div className="flex items-center gap-4 sm:gap-6 shrink-0">
+            <a
+              href="#kalkulator-section"
+              className="hover:text-white dark:hover:text-white transition flex items-center gap-1.5"
+            >
+              <span>Kalkulator Pokok</span>
+            </a>
+            <a
+              href="#skenario-section"
+              className="hover:text-white dark:hover:text-white transition flex items-center gap-1.5"
+            >
+              <span>Skenario Nominal</span>
+            </a>
+            <a
+              href="#grafik-section"
+              className="hover:text-white dark:hover:text-white transition flex items-center gap-1.5"
+            >
+              <span>Grafik Bunga &amp; Tenor</span>
+            </a>
+            <a
+              href="#amortisasi-section"
+              className="hover:text-white dark:hover:text-white transition flex items-center gap-1.5"
+            >
+              <span>Tabel Amortisasi</span>
+            </a>
+          </div>
+
+          <div className="flex items-center gap-4 shrink-0 text-amber-300 dark:text-amber-400">
+            <a
+              href="#panduan-pelunasan"
+              className="hover:underline flex items-center gap-1"
+            >
+              <span>Panduan KPR</span>
+            </a>
+            <a
+              href="#faq-kpr"
+              className="hover:underline flex items-center gap-1"
+            >
+              <span>FAQ</span>
+            </a>
+          </div>
+        </div>
+      </nav>
     </header>
   );
 };
